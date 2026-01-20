@@ -85,7 +85,7 @@ async fn main_service(
     }
     {
         let ip = peer_address.ip().to_string();
-        if ip.starts_with("10.11.") || ip.starts_with("100.") {
+        if ip.starts_with("10.11.") || ip.starts_with("100.") || ip.starts_with("127.0.0.") {
             println!("[webserver-remote]: Whitelisted IP {} access to {}", ip, request.uri().path());
         } else {
             let mut global_list = lock_wait_global_list();
