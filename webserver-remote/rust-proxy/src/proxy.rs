@@ -85,31 +85,35 @@ async fn main_service(
     }
     {
         let ip = peer_address.ip().to_string();
-        let mut global_list = lock_wait_global_list();
-        match global_list.get_mut(&ip) {
-            None => {
-                println!("[webserver-remote]: Unknown IP {}", ip);
-                feedback::broadcast(ip);
-                ready_page!("page_query.html");
-            }
-            Some(e) => {
-                let age = epoch() - e.since;
-                if age > ENTRY_LIFE_DURATION {
-                    // Drop it.
-                    global_list.remove(&ip);
-                    println!("[webserver-remote]: Outdated IP {}", ip);
+        if ip.starts_with("10.11.") || ip.starts_with("100.") {
+            println!("[webserver-remote]: Whitelisted IP {} access to {}", ip, request.uri().path());
+        } else {
+            let mut global_list = lock_wait_global_list();
+            match global_list.get_mut(&ip) {
+                None => {
+                    println!("[webserver-remote]: Unknown IP {}", ip);
                     feedback::broadcast(ip);
                     ready_page!("page_query.html");
-                } else {
-                    match e.action {
-                        IpRefAction::Blocked => {
-                            // Blocked ones do not refresh the time.
-                            println!("[webserver-remote]: Blocked IP {} ({} ms left)", ip, ENTRY_LIFE_DURATION - age);
-                            ready_page!("page_blocked.html");
-                        }
-                        IpRefAction::Allowed => {
-                            println!("[webserver-remote]: Allowed IP {} access to {} (outdated in {} ms)", ip, request.uri().path(), ENTRY_LIFE_DURATION - age);
-                            e.since = epoch();
+                }
+                Some(e) => {
+                    let age = epoch() - e.since;
+                    if age > ENTRY_LIFE_DURATION {
+                        // Drop it.
+                        global_list.remove(&ip);
+                        println!("[webserver-remote]: Outdated IP {}", ip);
+                        feedback::broadcast(ip);
+                        ready_page!("page_query.html");
+                    } else {
+                        match e.action {
+                            IpRefAction::Blocked => {
+                                // Blocked ones do not refresh the time.
+                                println!("[webserver-remote]: Blocked IP {} ({} ms left)", ip, ENTRY_LIFE_DURATION - age);
+                                ready_page!("page_blocked.html");
+                            }
+                            IpRefAction::Allowed => {
+                                println!("[webserver-remote]: Allowed IP {} access to {} (outdated in {} ms)", ip, request.uri().path(), ENTRY_LIFE_DURATION - age);
+                                e.since = epoch();
+                            }
                         }
                     }
                 }
